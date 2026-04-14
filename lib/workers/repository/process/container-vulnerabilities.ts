@@ -35,7 +35,7 @@ export class ContainerVulnerabilities {
       }),
     );
 
-    this.osvOffline = await OsvOffline.create(token);
+    this.osvOffline = undefined; //await OsvOffline.create(token);
   }
 
   static async create(): Promise<ContainerVulnerabilities> {
@@ -138,6 +138,11 @@ export class ContainerVulnerabilities {
     const newDigest = this.getNewDigest(dep);
     if (oldDigest === '' || newDigest === '') {
       logger.info(`Image ${depName} is not specified via digest, skipping`);
+      return null;
+    }
+
+    if (is.nullOrUndefined(this.osvOffline)) {
+      logger.warn('OSV Offline datasource is not initialized, skipping');
       return null;
     }
 
@@ -244,20 +249,20 @@ export class ContainerVulnerabilities {
       logger.warn(`cannot get config digest of ${imageRef}`);
       return null;
     }
+    return '';
+    // const imageConfig = await this.dockerDatasource.getImageConfigFull(
+    //   registry,
+    //   repo,
+    //   configDigest,
+    // );
 
-    const imageConfig = await this.dockerDatasource.getImageConfigFull(
-      registry,
-      repo,
-      configDigest,
-    );
-
-    if (imageConfig && typeof imageConfig.body === 'string') {
-      const body = JSON.parse(imageConfig.body);
-      return body.created;
-    } else {
-      logger.warn(`cannot get image config of ${imageRef}`);
-      return null;
-    }
+    // if (imageConfig && typeof imageConfig.body === 'string') {
+    //   const body = JSON.parse(imageConfig.body);
+    //   return body.created;
+    // } else {
+    //   logger.warn(`cannot get image config of ${imageRef}`);
+    //   return null;
+    // }
   }
 
   private splitImageRef(input: string): [string, string, string] | null {

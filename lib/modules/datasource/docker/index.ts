@@ -181,6 +181,46 @@ export class DockerDatasource extends Datasource {
       return null;
     }
   }
+  async getImageCreatedTimestamp(
+    registryHost: string,
+    dockerRepository: string,
+    configDigest: string,
+  ): Promise<string | null> {
+    const headers = await getAuthHeaders(
+      this.http,
+      registryHost,
+      dockerRepository,
+    );
+    // istanbul ignore if: Should never happen
+    if (!headers) {
+      logger.warn('No docker auth found - returning');
+      return null;
+    }
+    const url = joinUrlParts(
+      registryHost,
+      'v2',
+      dockerRepository,
+      'blobs',
+      configDigest,
+    );
+    logger.debug(
+      { registryHost, dockerRepository, configDigest },
+      'Getting image created timestamp from config blob',
+    );
+
+    const readableStream = this.http.stream(url, { headers, noAuth: true });
+    let buffer = '';
+    const createdRegex = /"created"\s*:\s*"([^"]+)"/;
+    for await (const chunk of readableStream) {
+      buffer += chunk.toString();
+      const match = createdRegex.exec(buffer);
+      if (match) {
+        readableStream.destroy();
+        return match[1];
+      }
+    }
+    return null;
+  }
 
   async getImageConfigFull(
     registryHost: string,
